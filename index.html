@@ -1,0 +1,230 @@
+<html><head><base href="https://cdn.jsdelivr.net/" target="_blank">
+<meta charset="UTF-8">
+<title>Simple Linear Regression Web App</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+<style>
+  body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+    color: #E0E0E0;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    background-color: #1E1E1E;
+  }
+  .left-panel {
+    width: 300px;
+    padding-right: 20px;
+    overflow-y: auto;
+  }
+  .right-panel {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  h1 {
+    color: #61DAFB;
+    margin-top: 0;
+  }
+  .slider-container {
+    margin-bottom: 20px;
+  }
+  .slider {
+    width: 100%;
+    -webkit-appearance: none;
+    background: #3D3D3D;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+  }
+  .slider:hover {
+    opacity: 1;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #61DAFB;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #61DAFB;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+  #plot {
+    flex-grow: 1;
+    width: 100%;
+    background-color: #2D2D2D;
+  }
+  #results {
+    margin-top: 20px;
+    font-weight: bold;
+    color: #61DAFB;
+  }
+  @keyframes sparkle {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="left-panel">
+  <h1>Simple Linear Regression Web App</h1>
+
+  <div class="slider-container">
+    <label for="slope">Slope (a): <span id="slope-value">1</span></label>
+    <input type="range" id="slope" class="slider" min="-50" max="50" value="1" step="0.1">
+  </div>
+
+  <div class="slider-container">
+    <label for="intercept">Intercept (b): <span id="intercept-value">0</span></label>
+    <input type="range" id="intercept" class="slider" min="-50" max="50" value="0" step="0.1">
+  </div>
+
+  <div class="slider-container">
+    <label for="noise">Noise factor (c): <span id="noise-value">20</span></label>
+    <input type="range" id="noise" class="slider" min="10" max="100" value="20" step="1">
+  </div>
+
+  <div class="slider-container">
+    <label for="points">Number of points (n): <span id="points-value">500</span></label>
+    <input type="range" id="points" class="slider" min="100" max="1000" value="500" step="10">
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<div class="right-panel">
+  <div id="plot"></div>
+</div>
+
+<script>
+function generateData(n, a, b, c) {
+  const x = numeric.random([n]).map(v => v * 20 - 10);
+  const y = x.map(xi => a * xi + b + c * numeric.random([1])[0]);
+  return { x, y };
+}
+
+function linearRegression(x, y) {
+  const n = x.length;
+  const sum_x = x.reduce((a, b) => a + b, 0);
+  const sum_y = y.reduce((a, b) => a + b, 0);
+  const sum_xy = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+  const sum_xx = x.reduce((sum, xi) => sum + xi * xi, 0);
+
+  const slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x);
+  const intercept = (sum_y - slope * sum_x) / n;
+
+  return { slope, intercept };
+}
+
+function updatePlot() {
+  const a = parseFloat(document.getElementById('slope').value);
+  const b = parseFloat(document.getElementById('intercept').value);
+  const c = parseFloat(document.getElementById('noise').value);
+  const n = parseInt(document.getElementById('points').value);
+
+  const { x, y } = generateData(n, a, b, c);
+  const { slope, intercept } = linearRegression(x, y);
+
+  const sparkleOpacities = x.map(() => Math.random() * 0.5 + 0.5);
+  const sparkleSizes = x.map(() => Math.random() * 8 + 4);
+
+  const trace1 = {
+    x: x,
+    y: y,
+    mode: 'markers',
+    type: 'scatter',
+    name: 'Data Points',
+    marker: {
+      color: '#61DAFB',
+      size: sparkleSizes,
+      opacity: sparkleOpacities,
+      symbol: 'star',
+    }
+  };
+
+  const x_line = [-10, 10];
+  const y_line = x_line.map(xi => slope * xi + intercept);
+
+  const trace2 = {
+    x: x_line,
+    y: y_line,
+    mode: 'lines',
+    type: 'scatter',
+    name: 'Regression Line',
+    line: { color: '#FF6B6B', width: 3 }
+  };
+
+  const layout = {
+    title: 'Sparkling Linear Regression',
+    xaxis: { title: 'X', gridcolor: '#3D3D3D', zerolinecolor: '#3D3D3D' },
+    yaxis: { title: 'Y', gridcolor: '#3D3D3D', zerolinecolor: '#3D3D3D' },
+    autosize: true,
+    plot_bgcolor: '#2D2D2D',
+    paper_bgcolor: '#2D2D2D',
+    font: { color: '#E0E0E0' },
+    showlegend: false,
+  };
+
+  Plotly.newPlot('plot', [trace1, trace2], layout, {responsive: true});
+
+  // Animate sparkle effect
+  setInterval(() => {
+    const update = {
+      'marker.opacity': [sparkleOpacities.map(() => Math.random() * 0.5 + 0.5)]
+    };
+    Plotly.restyle('plot', update, [0]);
+  }, 1000);
+
+  const rSquared = 1 - numeric.sum(numeric.pow(numeric.sub(y, numeric.add(numeric.mul(x, slope), intercept)), 2)) / 
+                   numeric.sum(numeric.pow(numeric.sub(y, numeric.mean(y)), 2));
+
+  document.getElementById('results').innerHTML = `
+    True parameters: a = ${a.toFixed(2)}, b = ${b.toFixed(2)}<br>
+    Estimated parameters: a = ${slope.toFixed(2)}, b = ${intercept.toFixed(2)}<br>
+    R-squared score: ${rSquared.toFixed(4)}
+  `;
+}
+
+function updateSliderValue(sliderId) {
+  const slider = document.getElementById(sliderId);
+  const valueSpan = document.getElementById(`${sliderId}-value`);
+  valueSpan.textContent = slider.value;
+}
+
+document.getElementById('slope').addEventListener('input', () => {
+  updateSliderValue('slope');
+  updatePlot();
+});
+
+document.getElementById('intercept').addEventListener('input', () => {
+  updateSliderValue('intercept');
+  updatePlot();
+});
+
+document.getElementById('noise').addEventListener('input', () => {
+  updateSliderValue('noise');
+  updatePlot();
+});
+
+document.getElementById('points').addEventListener('input', () => {
+  updateSliderValue('points');
+  updatePlot();
+});
+
+updatePlot();
+
+window.addEventListener('resize', updatePlot);
+</script>
+
+</body></html>
